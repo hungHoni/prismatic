@@ -1,0 +1,1560 @@
+openapi: 3.1.0
+info:
+  title: Fund Sub Public API
+  version: "1.0"
+servers:
+  - url: https://api-demo.anduin.app
+    description: Sand box environment
+  - url: https://api.anduin.app
+    description: Production environment
+paths:
+  /api/v1/fundsub/{fund-id}:
+    get:
+      tags:
+        - Fund
+      description: |-
+        ### Get Fund Information
+
+        Get details about a Fund which is including:
+
+        - Fund name
+        - Closings
+        - Fund management members
+        - Import/export templates
+        - Order IDs
+      operationId: GetFundInfo
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                required:
+                  - id
+                  - customId
+                  - name
+                type: object
+                properties:
+                  id:
+                    $ref: "#/components/schemas/FundID"
+                  customId:
+                    $ref:
+                      "#/components/schemas/Customer defined custom ID to assign
+                      to the fund"
+                  name:
+                    $ref: "#/components/schemas/Name of the fund"
+                  membersGroups:
+                    type: array
+                    items:
+                      required:
+                        - id
+                        - name
+                      type: object
+                      properties:
+                        id:
+                          $ref: "#/components/schemas/Fund members group ID"
+                        name:
+                          type: string
+                          example: Group name
+                        members:
+                          type: array
+                          items:
+                            required:
+                              - email
+                              - firstName
+                              - lastName
+                            type: object
+                            properties:
+                              email:
+                                type: string
+                                example: john.doe@gmail.com
+                              firstName:
+                                type: string
+                                example: John
+                              lastName:
+                                type: string
+                                example: Doe
+                  closes:
+                    type: array
+                    items:
+                      required:
+                        - id
+                        - name
+                        - targetDate
+                      type: object
+                      properties:
+                        id:
+                          $ref: "#/components/schemas/CloseID"
+                        name:
+                          type: string
+                          example: Close name
+                        targetDate:
+                          type: string
+                          description: Date string in MM/dd/yyyy format
+                          example: 04/20/2024
+                  templates:
+                    type: array
+                    items:
+                      required:
+                        - id
+                        - name
+                        - templateType
+                      type: object
+                      properties:
+                        id:
+                          $ref: "#/components/schemas/TemplateID"
+                        name:
+                          type: string
+                          example: Template name
+                        templateType:
+                          type: string
+                          description:
+                            Type of the template, will be either IMPORT
+                            or EXPORT
+                          example: EXPORT
+                        fields:
+                          type: array
+                          items:
+                            type: string
+                          description: Data points available in this template
+                          example:
+                            - class
+                            - amount
+                            - investorType
+                  orderIds:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order ID"
+                    description: List of Order IDs in this Fund
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/closes/{close-id}:
+    post:
+      tags:
+        - Close
+      description: |-
+        ### Update a Close
+
+        Update information of a Close:
+        - Close Name
+        - Target Date
+      operationId: UpdateClose
+      parameters:
+        - name: close-id
+          in: path
+          description: The unique ID of the Close object
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Close 2
+                customId:
+                  type: string
+                  description: Custom ID assigned by user to the Close
+                  example: Close123
+                targetDate:
+                  type: string
+                  description: Date string in MM/dd/yyyy format
+                  example: 04/20/2024
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                required:
+                  - id
+                  - name
+                  - customId
+                  - targetDate
+                type: object
+                properties:
+                  id:
+                    $ref: "#/components/schemas/CloseID"
+                  name:
+                    type: string
+                    example: Close 2
+                  customId:
+                    type: string
+                    description: Custom ID assigned by user to the Close
+                    example: Close123
+                  targetDate:
+                    type: string
+                    description: Date string in MM/dd/yyyy format
+                    example: 04/20/2024
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/{fund-id}/orders:
+    post:
+      tags:
+        - Order
+      description: |-
+        ### Create a New Order
+
+        Create a new **order** in a **Fund** with the supplied `fundId`.
+
+        If the order is created successfully, the response will contain an **OrderId**, which is used to identify the
+        **Order** and query **Order** details (e.g. form filling progress, commitment amount, etc.) via the **Graphql API**.
+
+        To create multiple orders at the same time, the asynchronous version of this API, which is
+        "Create Multiple Orders", is recommended.
+      operationId: InviteInvestor
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - order
+              type: object
+              properties:
+                orderType:
+                  $ref: "#/components/schemas/OrderType"
+                closeId:
+                  $ref: "#/components/schemas/CloseID"
+                order:
+                  $ref: "#/components/schemas/Order Params"
+                templateId:
+                  $ref: "#/components/schemas/TemplateID"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateOrderResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/{fund-id}/async/bulk/orders:
+    post:
+      tags:
+        - Order
+      description:
+        "### Create Multiple Orders\n\nCreate multiple **order**s in the\
+        \ **Fund** with the supplied `fundId`.\n\nThis is an asynchronous API, which\
+        \ means the supplied orders will be created in the background after\nthe API\
+        \ returns. The response of this API contains a `requestId`, which can be used\
+        \ to query the\nprogress of the order creation process via the **Query Request\
+        \ Status** API.\n\nThis API allows creating up to **100** orders in a single\
+        \ request. As all asynchronous requests,\nthe background process of this API\
+        \ is allowed to take a relatively long time to finish.\nThe current limit\
+        \ is **60 minutes** to complete the background process for each asynchronous\
+        \ request.\nIf a request takes longer than this limit, it will be terminated\
+        \ and the API is considered partially\ncompleted. For example, an asynchronous\
+        \ request to create 100 orders is terminated due to timeout\nafter 60 minutes,\
+        \ and only 90 orders have been created before the request is terminated, which\n\
+        results in a partial completion of this request. The **Query Request Status**\
+        \ API will return the status\nof each order independently, showing 90 created\
+        \ orders and 10 failed to create orders.\n\nFor more information about asynchronous\
+        \ requests, refer to the \n[Synchronous vs. Asynchronous APIs](https://support.anduintransact.com/en_US/getting-started/1422115-synchronous-vs-asynchronous-apis)\
+        \ \nin the main Developer API documentation."
+      operationId: BulkInviteInvestor
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - orders
+              type: object
+              properties:
+                orderType:
+                  $ref: "#/components/schemas/OrderType"
+                closeId:
+                  $ref: "#/components/schemas/CloseID"
+                orders:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Order Params"
+                  description: The non-empty list of parameters to create orders
+                  minItems: 1
+                templateId:
+                  $ref: "#/components/schemas/TemplateID"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AsyncResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/{fund-id}/orders/formData:
+    post:
+      tags:
+        - Order
+      description: |-
+        ### Get Form Data
+
+        Export form data of orders supplied in the input parameters. Up to **100** orders can be exported in a request.
+        `templateId` value specifies the list of data fields and data types of the exported data. If `templateId` is empty,
+        Anduin standard template will be used for the exported data.
+      operationId: GetOrdersFormData
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetOrdersFormDataBodyParams"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetOrdersFormDataResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/orders/{order-id}:
+    post:
+      tags:
+        - Order
+      description: |-
+        ### Update Order
+
+        Update information of a Order:
+        - Custom ID
+        - Metadata
+        - Close (Move the Order to a different Close)
+
+        **Note:** metadata field that do not appear in the body params will be kept intact. To remove a metadata field, supply it with empty value (""). For example, with the current metadata as `{"Oppotunity ID": "ID123", "Client Name": "John Doe"}`.
+        An update with metadata field as `{"Partner ID": "ABC-VC", "Client Name": ""}` will result in the following metadata `{"Oppotunity ID": "ID123", "Partner ID": "ABC-VC"}`
+      operationId: UpdaterOrder
+      parameters:
+        - name: order-id
+          in: path
+          description: The unique ID of the Order object
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - closeId
+              type: object
+              properties:
+                closeId:
+                  $ref: "#/components/schemas/CloseID"
+                customId:
+                  type: string
+                  description: Custom ID assigned by user to the Order
+                  example: Investor123
+                metadata:
+                  $ref: "#/components/schemas/metadata"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                required:
+                  - id
+                  - closeId
+                type: object
+                properties:
+                  id:
+                    $ref: "#/components/schemas/Order ID"
+                  closeId:
+                    $ref: "#/components/schemas/CloseID"
+                  customId:
+                    type: string
+                    description: Custom ID assigned by user to the Order
+                    example: Investor123
+                  metadata:
+                    $ref: "#/components/schemas/metadata"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/orders/{order-id}/online:
+    put:
+      tags:
+        - Order
+      description: |-
+        ### Activate an Offline Order
+
+        Activate an `Offline` order with the supplied `orderId`. The activated order will be turned into a `Normal`
+        order. The main effect of activating an `Offline` order is that the invitation will be sent out to order
+        contacts via emails. Through the links in invitation emails, order contacts can create an account in the
+        Anduin Fund Subscription platform, and then securely access the created order to complete the subscription
+        process. The order activation is irreversible, meaning that a `Normal` order cannot be turned back to an
+        `Offline` order.
+      operationId: ActivateOfflineOrder
+      parameters:
+        - name: order-id
+          in: path
+          description: The unique ID of the Order object
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivateOfflineOrderResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/files/{file-id}/url:
+    get:
+      tags:
+        - File
+      description:
+        "### Get File Download URL\n\nGenerate a temporary URL to download\
+        \ a file supplied in the input parameter. The returned URL is a \n[pre-signed\
+        \ URL from AWS S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html),\
+        \ \nwhich has **10 minutes expiry**. The URL provides a restricted access\
+        \ to download the requested file \ndirectly from AWS S3, which is Anduin's\
+        \ underlining document storage system. Attempts to use the URL\nafter the\
+        \ expiry time will result in an `AccessDenied` error from AWS S3."
+      operationId: GetFileDownloadUrl
+      parameters:
+        - name: file-id
+          in: path
+          description: The unique ID of the File object
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetFileDownloadUrlResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/requests/{request-id}/status:
+    get:
+      tags:
+        - Request
+      description: |-
+        ### Get Request Status
+
+        Get the status of a request with the supplied `requestId`.
+
+        A request Id can be obtained directly from the response of an asynchronous request, e.g. the **Create Multiple Order**
+        API. For synchronous requests, the request Id can be extracted from the `X-Request-Id` header of the response.
+
+        For more information about asynchronous requests, refer to the
+        [Synchronous vs. Asynchronous APIs](https://support.anduintransact.com/en_US/getting-started/1422115-synchronous-vs-asynchronous-apis)
+        in the main Developer API documentation.
+      operationId: GetRequestStatus
+      parameters:
+        - name: request-id
+          in: path
+          description: The unique ID of the Request
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FundSubRequestStatusResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/{fund-id}/link:
+    get:
+      tags:
+        - Link
+      description: |-
+        ### Get Invitation Link
+
+        Get the invitation link of a fund with the supplied `fundId`. Note that the invitation link needs to
+        be configured on the requested fund before it can be retrieved by this API.
+      operationId: FundLink
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetFundInvitationLinkResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/{fund-id}/webhook:
+    get:
+      tags:
+        - Webhook
+      description: |-
+        ### Get detail of all webhook endpoints in a fund
+
+        Get the details of all the webhook endpoints subscribed to the fund with the supplied `fund-id`. These details include enabled events and the URL.
+      operationId: GetAllFundWebhooks
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllFundWebhooksResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+    post:
+      tags:
+        - Webhook
+      description:
+        "### Create a webhook endpoint\n\nTo set up a webhook endpoint\
+        \ you must specify the `fund-id`, and the `enabled_events` \nto describe the\
+        \ targeted fund and the event types that your webhook endpoint wants to \n\
+        be notified about. You must also provide an URL to your endpoint, and it must\
+        \ pass a \nsimple validation request as described below.\n\n### Validation\
+        \ request\n\nThe validation request is an `HTTP GET` that contains a random\
+        \ validation key in the \n`x-anduin-webhook-validation-key` header. To pass\
+        \ the validation your endpoint need \nto respond with a 200 status code and\
+        \ include the same header with the validation key. \nThe validation request\
+        \ could be written using `cURL` as:\n\n`curl -X GET https:\\\\yourdomain.com\
+        \ -H 'x-anduin-webhook-validation-key: [RANDOM_VALIDATIONKEY]'`\n\n### Event\
+        \ payloads\n\nUpon successful validation, your webhook endpoint will start\
+        \ to receive events of the subscribed fund. \nEvents will be sent via an `HTTP\
+        \ POST` to your endpoint with the body contain the payload describing \nthe\
+        \ event detail. We currently have two types of event: `new_investor_added`\
+        \ and `subscription_status_changed`. \nThe payload format for those events\
+        \ is as below:\n\n`new_investor_added`: fires when there is a new investor\
+        \ added to the fund.\n\n```\n{\n    fundId: String // the ID of the fund,\n\
+        \    event: String // would always be \"new_investor_added\",\n    lpId: String\
+        \ // the ID of the investor,\n    createdAt: String // Timestamp string in\
+        \ ISO format, for example: 2022-07-28T18:48:58.695763842Z\n}\n```\n\n`subscription_status_changed`:\
+        \ fires when a subscription in a fund changed its status.\n\n```\n{\n    fundId:\
+        \ String // the ID of the fund,\n    event: String // would always be \"subscription_status_changed\"\
+        ,\n    lpId: String // the ID of the investor,\n    previousStatus: String\
+        \ // the previous status. For possible values please check the OrderStatus\
+        \ in our GraphQL schema\n    newStatus: String // the new status.\n    createdAt:\
+        \ String // timestamp string in ISO format.\n}\n```\n\n\n"
+      operationId: CreateWebhook
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWebhookBodyParams"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateWebhookResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/{fund-id}/webhook/{webhook-endpoint-id}:
+    get:
+      tags:
+        - Webhook
+      description: |-
+        ### Get detail of a webhook endpoint
+
+        Get the details of the webhook endpoint with the supplied `webhook-endpoint-id`. These details include enabled events and the URL.
+      operationId: GetWebhook
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+        - name: webhook-endpoint-id
+          in: path
+          description: The unique ID of the Webhook endpoint
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000.wid000000
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookInfo"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+    put:
+      tags:
+        - Webhook
+      description:
+        "### Update a webhook endpoint\n\nUpdate `url` and `enabled_events`\
+        \ attributes of the webhook endpoint with the supplied `webhook-id`. \nNote\
+        \ that the `url` will need to go through a validation process again as in\
+        \ create webhook API."
+      operationId: UpdateWebhook
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+        - name: webhook-endpoint-id
+          in: path
+          description: The unique ID of the Webhook endpoint
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000.wid000000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWebhookBodyParams"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateWebhookResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+    delete:
+      tags:
+        - Webhook
+      description:
+        "### Remove a webhook endpoint\n\nRemove the webhook endpoint with\
+        \ the supplied `webhook-endpoint-id`.\nAfter this API is called successfully\
+        \ your registered URL will stop receiving notifications from **Anduin**. "
+      operationId: RemoveWebhook
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+        - name: webhook-endpoint-id
+          in: path
+          description: The unique ID of the Webhook endpoint
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000.wid000000
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoveWebhookResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/{fund-id}/standardFormFields:
+    get:
+      tags:
+        - Form Fields
+      description: |-
+        ### Get Standard Form Fields
+
+        Get all the standard form fields of the supplied `fundId` that can be used for import form data when calling create orders API.
+        Each form field has the following properties:
+        - `title`: name of the field, used as the identity when importing form data.
+        - `description`: description of the field.
+        - `availableValues`: list of available values for this field. If empty, the value is a free text.
+        - `dataType`: expected data type of this field
+      operationId: GetStandardFormFields
+      parameters:
+        - name: fund-id
+          in: path
+          description: The unique ID of the Fund object
+          required: true
+          schema:
+            type: string
+          example: txn0000000000000.fsb0000
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetStandardFormFieldsResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+  /api/v1/fundsub/standardFormField/{anduin-standard-alias}:
+    get:
+      tags:
+        - Standard Form Field
+      description: |-
+        ### Get Standard Form Field
+
+        Get the information of the standard form field of the supplied `field name`.
+        The form field has the following properties:
+        - `title`: name of the field, used as the identity when importing form data.
+        - `description`: description of the field.
+        - `availableValues`: list of available values for this field. If empty, the value is a free text.
+        - `dataType`: expected data type of this field
+      operationId: GetStandardFormField
+      parameters:
+        - name: anduin-standard-alias
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetStandardFormFieldResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResponse"
+        "401":
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorResponse"
+components:
+  schemas:
+    ActivateOfflineOrderResponse:
+      required:
+        - responseType
+      type: object
+      properties:
+        responseType:
+          type: string
+    AsyncResponse:
+      required:
+        - requestId
+      type: object
+      properties:
+        requestId:
+          type: string
+          description:
+            A request Id which can be used to query the result of this
+            asynchronous operation via the /requests/{request-id}/status API
+    AuthorizationResponse:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    CloseID:
+      type: string
+      description: The Id of the close to associate with the order
+      example: txn0000000000000.fsb0000.fsc0000000
+    CreateOrderResponse:
+      required:
+        - orderId
+      type: object
+      properties:
+        orderId:
+          $ref: "#/components/schemas/Order ID"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportFormDataWarning"
+    CreateWebhookBodyParams:
+      required:
+        - url
+      type: object
+      properties:
+        enabledEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEventType"
+          description: None empty list of events this webhook is subscribed for
+          minItems: 1
+        url:
+          type: string
+    CreateWebhookResponse:
+      required:
+        - id
+        - url
+        - fundId
+        - responseType
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/WebhookEndpointID"
+        url:
+          type: string
+        fundId:
+          $ref: "#/components/schemas/FundID"
+        enabledEvents:
+          type: array
+          items:
+            type: string
+        responseType:
+          type: string
+    Customer defined custom ID to assign to the fund:
+      type: string
+      example: Fund123
+    Fund members group ID:
+      type: string
+      description:
+        The ID of this fund members groups. Required when inviting new
+        members.
+      example: txn0000000000000.ttm000000
+    FundID:
+      type: string
+      description: The Id of the Fund Subscription object
+      example: txn0000000000000.fsb0000
+    FundSubRequestStatusResponse:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/RequestStatus"
+        result:
+          $ref: "#/components/schemas/GeneralFundSubApiResponse"
+        error:
+          type: string
+    GeneralFundSubApiResponse:
+      oneOf:
+        - $ref: "#/components/schemas/ActivateOfflineOrderResponse"
+        - $ref: "#/components/schemas/CreateWebhookResponse"
+        - $ref: "#/components/schemas/GeneralFundSubApiResponseGetRequestResultResponse"
+        - $ref: "#/components/schemas/GetAllFundWebhooksResponse"
+        - $ref: "#/components/schemas/GetFileDownloadUrlResponse"
+        - $ref: "#/components/schemas/GetFundInvitationLinkResponse"
+        - $ref: "#/components/schemas/GetOrdersFormDataResponse"
+        - $ref: "#/components/schemas/GetStandardFormFieldResponse"
+        - $ref: "#/components/schemas/GetStandardFormFieldsResponse"
+        - $ref: "#/components/schemas/RemoveWebhookResponse"
+        - $ref: "#/components/schemas/TestApiResponse"
+        - $ref: "#/components/schemas/UpdateWebhookResponse"
+        - $ref: "#/components/schemas/WebhookInfo"
+      discriminator:
+        propertyName: responseType
+        mapping:
+          ActivateOfflineOrderResponse: "#/components/schemas/ActivateOfflineOrderResponse"
+          CreateWebhookResponse: "#/components/schemas/CreateWebhookResponse"
+          GetAllFundWebhooksResponse: "#/components/schemas/GetAllFundWebhooksResponse"
+          GetFileDownloadUrlResponse: "#/components/schemas/GetFileDownloadUrlResponse"
+          GetFundInvitationLinkResponse: "#/components/schemas/GetFundInvitationLinkResponse"
+          GetOrdersFormDataResponse: "#/components/schemas/GetOrdersFormDataResponse"
+          GetRequestResultResponse: "#/components/schemas/GeneralFundSubApiResponseGetRequestResultResponse"
+          GetStandardFormFieldResponse: "#/components/schemas/GetStandardFormFieldResponse"
+          GetStandardFormFieldsResponse: "#/components/schemas/GetStandardFormFieldsResponse"
+          RemoveWebhookResponse: "#/components/schemas/RemoveWebhookResponse"
+          TestApiResponse: "#/components/schemas/TestApiResponse"
+          UpdateWebhookResponse: "#/components/schemas/UpdateWebhookResponse"
+          WebhookInfo: "#/components/schemas/WebhookInfo"
+    GeneralFundSubApiResponseGetRequestResultResponse:
+      required:
+        - responseType
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/RequestStatus"
+        output:
+          $ref: "#/components/schemas/GeneralFundSubApiResponse"
+        error:
+          $ref: "#/components/schemas/GeneralRequestError"
+        responseType:
+          type: string
+    GeneralRequestError:
+      oneOf:
+        - $ref: "#/components/schemas/AuthorizationResponse"
+        - $ref: "#/components/schemas/ServerErrorResponse"
+        - $ref: "#/components/schemas/ValidationResponse"
+      discriminator:
+        propertyName: errorType
+        mapping:
+          AuthorizationResponse: "#/components/schemas/AuthorizationResponse"
+          ServerErrorResponse: "#/components/schemas/ServerErrorResponse"
+          ValidationResponse: "#/components/schemas/ValidationResponse"
+    GetAllFundWebhooksResponse:
+      required:
+        - fundId
+        - responseType
+      type: object
+      properties:
+        fundId:
+          $ref: "#/components/schemas/FundID"
+        webhooks:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookInfo"
+        responseType:
+          type: string
+    GetFileDownloadUrlResponse:
+      required:
+        - url
+        - responseType
+      type: object
+      properties:
+        url:
+          type: string
+        responseType:
+          type: string
+    GetFundInvitationLinkResponse:
+      required:
+        - link
+        - responseType
+      type: object
+      properties:
+        link:
+          type: string
+        responseType:
+          type: string
+    GetOrdersFormDataBodyParams:
+      type: object
+      properties:
+        orderIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order ID"
+          description: An non-empty list of orderIds to retrieve the form data
+          minItems: 1
+        templateId:
+          $ref: "#/components/schemas/TemplateID"
+    GetOrdersFormDataResponse:
+      required:
+        - responseType
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/SingleOrderFormData"
+        responseType:
+          type: string
+    GetStandardFormFieldResponse:
+      required:
+        - responseType
+      type: object
+      properties:
+        field:
+          $ref: "#/components/schemas/StandardField"
+        responseType:
+          type: string
+    GetStandardFormFieldsResponse:
+      required:
+        - responseType
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/StandardField"
+        responseType:
+          type: string
+    ImportFormDataWarning:
+      required:
+        - warning
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+        warning:
+          type: string
+    Map_String:
+      type: object
+      additionalProperties:
+        type: string
+    Name of the fund:
+      type: string
+      example: ABC UAT Fund
+    Order ID:
+      type: string
+      description: ID of the Order object
+      example: txn0000000000000.fsb0000.lpp0000000
+    Order Params:
+      required:
+        - formData
+        - metadata
+      type: object
+      properties:
+        customId:
+          type: string
+          description: Customer defined custom ID to assign to the order
+          example: Investor123
+        contacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderContactInfo"
+          description:
+            A non empty list of the order's contact information. The first
+            contact in the list is the order's default contact.
+          minItems: 1
+        investmentEntityName:
+          type: string
+          description: Name of the order's investment entity
+          example: John's family fund
+        expectedCommitmentAmount:
+          type: string
+          description: Expected commitment amount of the order
+          example: 1000000
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tags to assign to the order
+        formData:
+          $ref: "#/components/schemas/Map_String"
+        metadata:
+          $ref: "#/components/schemas/Map_String"
+      description: Parameters to create orders
+    OrderContactInfo:
+      required:
+        - email
+        - firstName
+        - lastName
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email address
+          example: john.doe@email.com
+        firstName:
+          type: string
+          description: First name of the contact
+          example: John
+          minLength: 1
+        lastName:
+          type: string
+          description: Last name of the contact
+          example: Doe
+          minLength: 1
+    OrderType:
+      type: integer
+      description: |2
+
+        The type of the order, which is used to determine whether to invite the order contacts or not.
+         There can be 2 values:
+        * `0 - Normal`: Contacts will be invited
+        * `1 - Offline`: Contacts will not be invited
+      default: 0
+      enum:
+        - 0
+        - 1
+    RemoveWebhookResponse:
+      required:
+        - success
+        - responseType
+      type: object
+      properties:
+        success:
+          type: boolean
+        responseType:
+          type: string
+    RequestStatus:
+      type: integer
+      description: |2
+
+        The status of the request
+        There can be 4 values:
+        * `0 - Pending`: the request is received but the execution is not yet started
+        * `1 - Completed`: the request is completed
+        * `2 - Failed`: the request is failed
+        * `3 - In Processing`: the request is executing
+      default: 0
+      enum:
+        - 0
+        - 1
+        - 2
+        - 3
+    ServerErrorResponse:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    SingleOrderFormData:
+      required:
+        - orderId
+        - formData
+      type: object
+      properties:
+        orderId:
+          $ref: "#/components/schemas/Order ID"
+        formData:
+          $ref: "#/components/schemas/Map_String"
+    StandardField:
+      required:
+        - title
+        - description
+        - dataType
+      type: object
+      properties:
+        title:
+          type: string
+          description:
+            Name of the field, used as the identity when importing form
+            data.
+        description:
+          type: string
+          description: Description of the field.
+        availableValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/StandardFieldOption"
+          description:
+            list of available values for this field. If empty, the value
+            is a free text.
+        dataType:
+          type: string
+    StandardFieldOption:
+      required:
+        - value
+        - description
+      type: object
+      properties:
+        value:
+          type: string
+        description:
+          type: string
+    TemplateID:
+      type: string
+      description: Id of the form data template to pre-fill subscription documents
+      example: dtp00000000000000000.dtv0000000
+    TestApiResponse:
+      required:
+        - message
+        - responseType
+      type: object
+      properties:
+        message:
+          type: string
+        responseType:
+          type: string
+    UpdateWebhookBodyParams:
+      required:
+        - url
+      type: object
+      properties:
+        enabledEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEventType"
+          description: None empty list of events this webhook is subscribed for
+          minItems: 1
+        url:
+          type: string
+    UpdateWebhookResponse:
+      required:
+        - id
+        - url
+        - isActive
+        - fundId
+        - responseType
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/WebhookEndpointID"
+        url:
+          type: string
+        isActive:
+          type: boolean
+        fundId:
+          $ref: "#/components/schemas/FundID"
+        enabledEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEventType"
+          description: None empty list of events this webhook is subscribed for
+          minItems: 1
+        responseType:
+          type: string
+    ValidationResponse:
+      required:
+        - message
+        - errorType
+      type: object
+      properties:
+        message:
+          type: string
+        errorType:
+          type: string
+    WebhookEndpointID:
+      type: string
+      description: ID of the Webhook endpoint
+      example: txn0000000000000.fsb0000.wid000000
+    WebhookEventType:
+      type: string
+      description: |2
+
+        A webhook event that a endpoint can watch for.
+         There can be 2 values:
+        * `new_investor_added`: fires when there is a new investor added to the fund.
+        * `subscription_status_changed`: fires when a subscription in a fund changed its status.
+      enum:
+        - new_investor_added
+        - subscription_status_changed
+    WebhookInfo:
+      required:
+        - id
+        - url
+        - isActive
+        - fundId
+        - responseType
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/WebhookEndpointID"
+        url:
+          type: string
+        isActive:
+          type: boolean
+        fundId:
+          $ref: "#/components/schemas/FundID"
+        enabledEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEventType"
+          description: None empty list of events this webhook is subscribed for
+          minItems: 1
+        responseType:
+          type: string
+    metadata:
+      type: object
+      description: Order metadata
+      example:
+        Opportunity Id: ID12345
+        Client Name: JV VC
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      name: authorization
+      in: header
+security:
+  - ApiKeyAuth: []
